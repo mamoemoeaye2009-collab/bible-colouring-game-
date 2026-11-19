@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bible Colouring Game</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f5f5f5;margin:0;text-align:center;color:#222}
+header{background:white;padding:14px;position:sticky;top:0}
+h2{margin:4px}
+button,label{font-size:16px;padding:9px 12px;margin:4px;border:1px solid #888;border-radius:8px;background:white}
+.colors{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:12px}
+.swatch{width:34px;height:34px;border-radius:50%;padding:0;border:2px solid #555}
+#picture{max-width:100%;height:auto;touch-action:manipulation;background:white}
+main{max-width:900px;margin:12px auto;padding:8px}
+#status{font-size:13px;color:#555}
+</style>
+</head>
+<body>
+<header>
+<h2>Come Back to God</h2>
+<p>Choose a colour, then tap a closed white area.</p>
+<label>Choose colouring picture <input id="upload" type="file" accept="image/*"></label>
+<div class="colors" id="colors"></div>
+<button id="undo">Undo</button>
+<button id="reset">Reset</button>
+<button id="save">Save Picture</button>
+</header>
+<main>
+<canvas id="picture"></canvas>
+<p id="status">First, choose your black-and-white colouring picture.</p>
+</main>
+<script>
+const canvas=document.getElementById('picture'),ctx=canvas.getContext('2d',{willReadFrequently:true});
+const palette=['#ff0000','#ff9900','#ffdd00','#00aa55','#0088ff','#9933cc','#ff66aa','#8b5a2b','#ffffff'];
+let colour=palette[0],original=null,history=[];
+const colors=document.getElementById('colors');
+palette.forEach((c,i)=>{let b=document.createElement('button');b.className='swatch';b.style.background=c;b.title=c;if(i===0)b.style.outline='3px solid black';b.onclick=()=>{colour=c;[...colors.children].forEach(x=>x.style.outline='');b.style.outline='3px solid black'};colors.appendChild(b)});
+document.getElementById('upload').onchange=e=>{
+ const f=e.target.files[0];if(!f)return;
+ const img=new Image(),url=URL.createObjectURL(f);
+ img.onload=()=>{canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;ctx.drawImage(img,0,0);original=ctx.getImageData(0,0,canvas.width,canvas.height);history=[];document.getElementById('status').textContent='Picture ready. Choose a colour and tap an area.';URL.revokeObjectURL(url)};
+ img.src=url;
+};
+function point(e){const r=canvas.getBoundingClientRect();return{x:Math.floor((e.clientX-r.left)*canvas.width/r.width),y:Math.floor((e.clientY-r.top)*canvas.height/r.height)}}
+canvas.addEventListener('pointerdown',e=>{
+ if(!original)return;const {x,y}=point(e),w=canvas.width,h=canvas.height;
+ if(x<0||y<0||x>=w||y>=h)return;
+ let im=ctx.getImageData(0,0,w,h),d=im.data,start=(y*w+x)*4;
+ const sr=d[start],sg=d[start+1],sb=d[start+2];
+ if(sr<220||sg<220||sb<220)return;
+ history.push(ctx.getImageData(0,0,w,h));if(history.length>15)history.shift();
+ const hex=colour.slice(1),r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);
+ const seen=new Uint8Array(w*h),stack=[x+y*w],tol=25;
+ while(stack.length){let p=stack.pop();if(p<0||p>=w*h||seen[p])continue;seen[p]=1;let k=p*4;
+ if(d[k]<220||d[k+1]<220||d[k+2]<220||Math.abs(d[k]-sr)>tol||Math.abs(d[k+1]-sg)>tol||Math.abs(d[k+2]-sb)>tol)continue;
+ d[k]=r;d[k+1]=g;d[k+2]=b;d[k+3]=255;
+ let px=p%w,py=(p/w)|0;if(px)stack.push(p-1);if(px<w-1)stack.push(p+1);if(py)stack.push(p-w);if(py<h-1)stack.push(p+w);
+ }
+ ctx.putImageData(im,0,0);
+});
+document.getElementById('undo').onclick=()=>{if(history.length)ctx.putImageData(history.pop(),0,0)};
+document.getElementById('reset').onclick=()=>{if(original){ctx.putImageData(original,0,0);history=[]}};
+document.getElementById('save').onclick=()=>{if(!original)return;let a=document.createElement('a');a.download='my-bible-colouring.png';a.href=canvas.toDataURL('image/png');a.click()};
+const autoImage = new Image();
+autoImage.onload = () => {
+ canvas.width = autoImage.naturalWidth;
+ canvas.height = autoImage.naturalHeight;
+ ctx.drawImage(autoImage, 0, 0);
+ original = ctx.getImageData(0, 0, canvas.width, canvas.height);
+ history = [];
+ document.getElementById('status').textContent =
+ 'Picture ready. Choose a colour and tap an area.';
+};
+autoImage.onerror = () => {
+ document.getElementById('status').textContent =
+ 'Picture not found. Check image filename.';
+};
+autoImage.src = 'Come_back_to_God.png';</script>
+</body>
+</html>
